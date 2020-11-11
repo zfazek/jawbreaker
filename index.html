@@ -1,0 +1,46 @@
+<html>
+    <style>
+#canvas {
+    background-color: #ffffff;
+    display: block;
+    border: 1px solid black;
+}
+#score_1, #score_2, #shape_score_1, #shape_score_2, #stats_1, #stats_2 {
+    text-align: left;
+    font-family: monospace; font-size: 36px; font-style: normal;
+}
+    </style>
+    <head>
+        <title>Jawbreaker</title>
+        <script src="main.js"></script>
+        <script src="draw.js"></script>
+        <script>document.addEventListener("DOMContentLoaded", main);</script>
+    </head>
+    <body>
+        <table>
+            <tr>
+                <th>
+                    <canvas id="canvas"></canvas>
+                </th>
+                <th>
+                    <div id="score_1"></div>
+                    <br>
+                    <div id="shape_score_1"></div>
+                    <br>
+                    <div id="stats_1"></div>
+                </th>
+            </tr>
+            <tr>
+                <th>
+                    <div id="score_2"></div>
+                    <br>
+                    <div id="shape_score_2"></div>
+                    <br>
+                    <div id="stats_2"></div>
+                </th>
+                <th>
+                </th>
+            </tr>
+        </table>
+    </body>
+</html>
