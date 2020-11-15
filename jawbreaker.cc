@@ -2,6 +2,7 @@
 #include <iostream>
 #include <set>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "cgicc/Cgicc.h"
@@ -13,6 +14,7 @@ using std::endl;
 using std::rand;
 using std::set;
 using std::string;
+using std::unordered_set;
 using std::vector;
 
 constexpr int TABLE_SIZE = 11;
@@ -20,6 +22,7 @@ static int score;
 
 vector<int> table;
 set<int> neighbors;
+unordered_set<int> visited;
 
 void set_neighbors(const int idx, const int color) {
     if (idx < 0 || idx >= TABLE_SIZE * TABLE_SIZE) {
@@ -28,7 +31,10 @@ void set_neighbors(const int idx, const int color) {
     if (table[idx] != color) {
         return;
     }
-    if (neighbors.find(idx)!= neighbors.end()) {
+    if (neighbors.find(idx) != neighbors.end()) {
+        return;
+    }
+    if (visited.find(idx) != visited.end()) {
         return;
     }
     neighbors.insert(idx);
@@ -114,18 +120,23 @@ void make_move(const int idx) {
 }
 
 vector<int> get_moves() {
+    visited.clear();
     set<int> moves;
     for (int i = 0; i < TABLE_SIZE * TABLE_SIZE; i++) {
         const int color = table[i];
         if (color == 0) {
             continue;
         }
+        if (visited.find(i) != visited.end()) {
+            continue;
+        }
         neighbors.clear();
         set_neighbors(i, color);
         if (neighbors.size() > 1) {
             const int first_idx = *neighbors.cbegin();
-            if (moves.find(first_idx) == moves.end()) {
-                moves.insert(first_idx);
+            moves.insert(first_idx);
+            for (const int idx : neighbors) {
+                visited.insert(idx);
             }
         }
     }
@@ -138,10 +149,25 @@ vector<int> get_moves() {
 
 int main(int argc, char**) {
     string input;
-    if (argc == 2) {
+    if (argc > 1) {
         input = "2443124225235431444531225412222153542133454111413455241"
             "1432325552421143333313211553433352155545521115525112214"
             "55215423251";
+        if (argc > 2) {
+            for (unsigned i = 0; i < input.size(); ++i) {
+                table.push_back(input[i] - '0');
+            }
+            if (table.size() != 121) {
+                return 0;
+            }
+            int n = 100000;
+            for (int i = 0; i < n; ++i) {
+                const vector<int> moves = get_moves();
+                if (i == n - 1) for (const int move : moves) cout << move << " ";
+            }
+            cout << endl;
+            return 0;
+        }
     } else {
         cgicc::Cgicc cgi;
         cout << cgicc::HTTPPlainHeader();
