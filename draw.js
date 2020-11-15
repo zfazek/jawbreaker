@@ -20,6 +20,9 @@ function draw() {
         ctx.fillStyle = colors[table[i]];
         ctx.fill();
     }
+    if (shape_chosen != -1) {
+        draw_border();
+    }
 }
 
 function draw_border() {
@@ -31,6 +34,7 @@ function draw_border() {
         ctx.rect(x * CIRCLE_DIAMETER, y * CIRCLE_DIAMETER,
             CIRCLE_DIAMETER, CIRCLE_DIAMETER);
         ctx.strokeStyle = "black";
+        ctx.lineWidth = 3;
         ctx.stroke();
     }
 }
