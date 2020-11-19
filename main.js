@@ -8,6 +8,7 @@ let stats_id;
 let fall_finished;
 let shift_finished;
 let ready;
+let tables_idx;
 
 let CIRCLE_RADIUS;
 let CIRCLE_DIAMETER;
@@ -18,6 +19,7 @@ let table_orig = [];
 let neighbors = [];
 let scores = [];
 let move_history = [];
+let tables = []
 
 let saved_tables = [];
 let table_1 = [
@@ -88,6 +90,8 @@ function make_move(idx) {
         neighbors.sort(function(a, b){return a-b});
         move_history.push(neighbors[0]);
         console.log("Move history: ", move_history);
+        tables_idx++;
+        tables[tables_idx] = table.slice();
         remove_neighbors();
         shape_chosen = -1;
         return;
@@ -232,6 +236,14 @@ function find_in_array(idx, arr) {
     return false;
 }
 
+function move_back() {
+    if (tables_idx >= 0) {
+        table = tables[tables_idx].slice();
+        tables_idx--;
+        draw();
+    }
+}
+
 function init(idx) {
     table_orig = [];
     scores = [];
@@ -271,15 +283,15 @@ function init_variables() {
     saved_tables.push(table_4);
     saved_tables.push(table_5);
     move_history = [];
+    tables = [];
+    tables_idx = -1;
 }
 
 function reset() {
     scores.push(score);
     console.log("Previous scores: ", scores);
     init_variables();
-    for (let i = 0; i < TABLE_SIZE * TABLE_SIZE; i++) {
-        table.push(table_orig[i]);
-    }
+    table = table_orig.slice();
     draw();
 }
 
