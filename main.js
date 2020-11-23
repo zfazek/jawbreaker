@@ -19,6 +19,7 @@ let table_orig = [];
 let neighbors = [];
 let scores = [];
 let move_history = [];
+let score_history = [];
 let tables = []
 
 let saved_tables = [];
@@ -131,15 +132,27 @@ async function ai() {
         $.ajax({
             url: "/cgi-bin/jawbreaker.cgi",
             type: "post",
-            data: "table=" + str,
+            data: "table=" + str + score,
             success: async function(data) {
                 if (data != "") {
-                    const move = parseInt(data);
-                    make_move(move);
-                    draw();
-                    await sleep(1000);
-                    make_move(move);
-                    draw();
+                    console.log(data);
+                    const json = JSON.parse(data);
+                    let max = 0;
+                    let max_key;
+                    for (let key of Object.keys(json)) {
+                        if (json[key] > max) {
+                            max = json[key];
+                            max_key = key;
+                        }
+                    }
+                    const move = parseInt(max_key);
+                    if (!isNaN(move)) {
+                        make_move(move);
+                        draw();
+                        await sleep(1000);
+                        make_move(move);
+                        draw();
+                    }
                 }
                 ready = true;
             }
@@ -154,9 +167,11 @@ function remove_neighbors() {
     }
     const n = neighbors.length;
     score += n * (n - 1);
+    score_history.push(score);
     fall();
     shift_right();
     is_end();
+    neighbors = [];
 }
 
 async function fall() {
@@ -240,6 +255,10 @@ function move_back() {
     if (tables_idx >= 0) {
         table = tables[tables_idx].slice();
         tables_idx--;
+        move_history.pop();
+        score_history.pop();
+        score = score_history[score_history.length - 1];
+        shape_chosen = -1;
         draw();
     }
 }
@@ -272,7 +291,6 @@ function init_variables() {
     shift_finished = true;
     ready = true;
     score = 0;
-    shape_score = "";
     shape_chosen = -1;
     table = [];
     neighbors = [];
@@ -283,6 +301,7 @@ function init_variables() {
     saved_tables.push(table_4);
     saved_tables.push(table_5);
     move_history = [];
+    score_history = [0];
     tables = [];
     tables_idx = -1;
 }
