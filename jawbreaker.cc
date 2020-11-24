@@ -1,8 +1,10 @@
 #include <algorithm>
+#include <chrono>
 #include <cstdlib>
 #include <ctime>
 #include <iostream>
 #include <map>
+#include <random>
 #include <set>
 #include <string>
 #include <unordered_set>
@@ -14,6 +16,9 @@
 #include "cgicc/HTTPPlainHeader.h"
 
 using std::atoi;
+using std::chrono::system_clock;
+using std::chrono::time_point;
+using std::chrono::milliseconds;
 using std::cout;
 using std::endl;
 using std::map;
@@ -26,15 +31,16 @@ using std::to_string;
 using std::unordered_set;
 using std::vector;
 
-constexpr int TABLE_SIZE = 11;
+static constexpr int TABLE_WIDTH = 11;
+static constexpr int TABLE_SIZE = TABLE_WIDTH * TABLE_WIDTH;
 static int score;
 
-vector<int> table;
-set<int> neighbors;
-unordered_set<int> visited;
+static vector<int> table;
+static set<int> neighbors;
+static unordered_set<int> visited;
 
 void set_neighbors(const int idx, const int color) {
-    if (idx < 0 || idx >= TABLE_SIZE * TABLE_SIZE) {
+    if (idx < 0 || idx >= TABLE_SIZE) {
         return;
     }
     if (table[idx] != color) {
@@ -47,18 +53,18 @@ void set_neighbors(const int idx, const int color) {
         return;
     }
     neighbors.insert(idx);
-    set_neighbors(idx - TABLE_SIZE, color);
-    if (idx % TABLE_SIZE > 0) {
+    set_neighbors(idx - TABLE_WIDTH, color);
+    if (idx % TABLE_WIDTH > 0) {
         set_neighbors(idx - 1, color);
     }
-    if (idx % TABLE_SIZE < TABLE_SIZE - 1) {
+    if (idx % TABLE_WIDTH < TABLE_WIDTH - 1) {
         set_neighbors(idx + 1, color);
     }
-    set_neighbors(idx + TABLE_SIZE, color);
+    set_neighbors(idx + TABLE_WIDTH, color);
 }
 
 bool is_end() {
-    for (int i = 0; i < TABLE_SIZE * TABLE_SIZE; i++) {
+    for (int i = 0; i < TABLE_SIZE; i++) {
         const int color = table[i];
         if (color == 0) {
             continue;
@@ -76,13 +82,13 @@ void fall() {
     bool fallen = true;
     while (fallen) {
         fallen = false;
-        for (int x = 0; x < TABLE_SIZE; x++) {
-            for (int y = TABLE_SIZE - 2; y >= 0; y--) {
-                const int idx = y * TABLE_SIZE + x;
-                if (table[idx] > 0 && table[idx + TABLE_SIZE] == 0) {
+        for (int x = 0; x < TABLE_WIDTH; x++) {
+            for (int y = TABLE_WIDTH - 2; y >= 0; y--) {
+                const int idx = y * TABLE_WIDTH + x;
+                if (table[idx] > 0 && table[idx + TABLE_WIDTH] == 0) {
                     const int color = table[idx];
                     table[idx] = 0;
-                    table[idx + TABLE_SIZE] = color;
+                    table[idx + TABLE_WIDTH] = color;
                     fallen = true;
                 }
             }
@@ -94,9 +100,9 @@ void shift_right() {
     bool shifted = true;
     while (shifted) {
         shifted = false;
-        for (int x = TABLE_SIZE - 2; x >= 0; x--) {
-            for (int y = 0; y < TABLE_SIZE; y++) {
-                const int idx = y * TABLE_SIZE + x;
+        for (int x = TABLE_WIDTH - 2; x >= 0; x--) {
+            for (int y = 0; y < TABLE_WIDTH; y++) {
+                const int idx = y * TABLE_WIDTH + x;
                 if (table[idx] > 0 && table[idx + 1] == 0) {
                     const int color = table[idx];
                     table[idx] = 0;
@@ -136,7 +142,7 @@ void make_move(const int idx) {
 vector<int> get_moves() {
     visited.clear();
     set<int> moves;
-    for (int i = 0; i < TABLE_SIZE * TABLE_SIZE; i++) {
+    for (int i = 0; i < TABLE_SIZE; i++) {
         const int color = table[i];
         if (color == 0) {
             continue;
@@ -165,7 +171,9 @@ string get_best_move(const int score_orig) {
     srand(time(0));
     const vector<int> table_orig = table;
     map<int, int64_t> temp_stats;
-    constexpr unsigned NUMBER_OF_GAMES = 800;
+    constexpr unsigned NUMBER_OF_GAMES = 10000;
+    const milliseconds MAX_DURATION = milliseconds(8000);
+    const time_point<system_clock> start_time = system_clock::now();
     for (unsigned i = 0; i < NUMBER_OF_GAMES; ++i) {
         table = table_orig;
         const vector<int> moves = get_moves();
@@ -185,6 +193,11 @@ string get_best_move(const int score_orig) {
             } else {
                 temp_stats[move] = score;
             }
+        }
+        const time_point<system_clock> now = system_clock::now();
+        if (now - start_time > MAX_DURATION) {
+            cout << "i: " << i << endl;
+            break;
         }
     }
     vector<pair<int, int64_t>> stats;
@@ -221,15 +234,15 @@ int main(int argc, char**) {
             return 0;
         }
     }
-    if (input.size() < 121) {
+    if (input.size() < TABLE_SIZE) {
         return 0;
     }
-    for (unsigned i = 0; i < 121; ++i) {
+    for (unsigned i = 0; i < TABLE_SIZE; ++i) {
         table.push_back(input[i] - '0');
     }
     int score = 0;
-    if (input.size() > 121) {
-        score = atoi(input.substr(121).c_str());
+    if (input.size() > TABLE_SIZE) {
+        score = atoi(input.substr(TABLE_SIZE).c_str());
     }
     if (!is_end()) {
         cout << get_best_move(score) << endl;
