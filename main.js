@@ -62,17 +62,17 @@ function main() {
     init(0);
 }
 
-function mouse_down(event) {
+async function mouse_down(event) {
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
     const idx = Math.floor(y / CIRCLE_DIAMETER) * TABLE_SIZE +
         Math.floor(x / CIRCLE_DIAMETER);
-    make_move(idx);
+    await make_move(idx);
     draw();
 }
 
-function make_move(idx) {
+async function make_move(idx) {
     const color = table[idx];
     if (color == 0) {
         return;
@@ -93,8 +93,10 @@ function make_move(idx) {
         console.log("Move history: ", move_history);
         tables_idx++;
         tables[tables_idx] = table.slice();
-        remove_neighbors();
+        // Clear the selection before the removal animation so the border is
+        // not re-rendered during the fall/shift redraws.
         shape_chosen = -1;
+        await remove_neighbors();
         return;
     }
     shape_chosen = idx;
@@ -129,38 +131,62 @@ async function ai() {
         for (let i = 0; i < TABLE_SIZE * TABLE_SIZE; i++) {
             str += table[i];
         }
-        $.ajax({
-            url: "/cgi-bin/jawbreaker.cgi",
-            type: "post",
-            data: "table=" + str + score,
-            success: async function(data) {
-                if (data != "") {
-                    console.log(data);
-                    const json = JSON.parse(data);
-                    let max = 0;
-                    let max_key;
-                    for (let key of Object.keys(json)) {
-                        if (json[key] > max) {
-                            max = json[key];
-                            max_key = key;
-                        }
-                    }
-                    const move = parseInt(max_key);
-                    if (!isNaN(move)) {
-                        make_move(move);
-                        draw();
-                        await sleep(1000);
-                        make_move(move);
-                        draw();
-                    }
-                }
-                ready = true;
+        try {
+            const response = await fetch("/cgi-bin/jawbreaker.cgi", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+                body: "table=" + str + "&score=" + score,
+            });
+            const data = await response.text();
+            // #6: explicitly handle an empty or no-move response from the AI.
+            if (data == "") {
+                console.log("AI returned empty response");
+                return;
             }
-        });
+            const json = JSON.parse(data);
+            console.log(json);
+            const keys = Object.keys(json);
+            if (keys.length == 0) {
+                console.log("AI found no move");
+                return;
+            }
+            let max = 0;
+            let max_key;
+            for (let key of keys) {
+                if (json[key] > max) {
+                    max = json[key];
+                    max_key = key;
+                }
+            }
+            const move = parseInt(max_key);
+            if (!isNaN(move)) {
+                // Two-step move so the chosen group is visible to the user:
+                // the first make_move selects the group and draws its border.
+                await make_move(move);
+                draw();
+                await sleep(1000);
+                // Clear the border, then confirm the removal with the second
+                // make_move. shape_chosen is kept so the confirm branch runs;
+                // it is only hidden for the clearing redraw.
+                const selected = shape_chosen;
+                shape_chosen = -1;
+                draw();
+                await sleep(200);
+                shape_chosen = selected;
+                await make_move(move);
+                draw();
+            }
+        } catch (err) {
+            console.error("AI request failed:", err);
+        } finally {
+            ready = true;
+        }
     }
 }
 
-function remove_neighbors() {
+async function remove_neighbors() {
     for (let i = 0; i < neighbors.length; i++) {
         const idx = neighbors[i];
         table[idx] = 0;
@@ -168,9 +194,10 @@ function remove_neighbors() {
     const n = neighbors.length;
     score += n * (n - 1);
     score_history.push(score);
-    fall();
-    shift_right();
-    is_end();
+    // #3: await the animations so callers only proceed once the board has
+    // fully settled (fall() then shift_right()).
+    await fall();
+    await shift_right();
     neighbors = [];
 }
 
@@ -257,8 +284,13 @@ function move_back() {
         tables_idx--;
         move_history.pop();
         score_history.pop();
-        score = score_history[score_history.length - 1];
+        // #4: restore the score to the value before the undone move. Fall back
+        // to 0 if the history is empty, so score can never become undefined.
+        score = score_history.length > 0 ?
+            score_history[score_history.length - 1] : 0;
         shape_chosen = -1;
+        // Clear any stale selection highlight so Undo leaves a clean board.
+        neighbors = [];
         draw();
     }
 }

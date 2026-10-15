@@ -40,13 +40,13 @@ function draw_border() {
 }
 
 function print_score() {
-    document.getElementById(score_id).innerHTML = "Score: " + score;
+    document.getElementById(score_id).textContent = "Score: " + score;
 }
 
 function print_shape_score() {
     const n = neighbors.length;
     const shape_score = n * (n - 1);
-    document.getElementById(shape_score_id).innerHTML = "Shape: " + shape_score;
+    document.getElementById(shape_score_id).textContent = "Shape: " + shape_score;
 }
 
 function print_stats() {
@@ -58,10 +58,15 @@ function print_stats() {
         const color = table[i];
         stats[color]++;
     }
-    let str = "<pre>";
+    // #8: build the stats block with a <pre> element and textContent instead
+    // of assigning an HTML string, avoiding innerHTML entirely.
+    let lines = [];
     for (let i = 1; i < stats.length; i++) {
-        str += colors[i] + ": " + stats[i] + "<br>";
+        lines.push(colors[i] + ": " + stats[i]);
     }
-    str += "</pre>";
-    document.getElementById(stats_id).innerHTML = str;
+    const container = document.getElementById(stats_id);
+    container.textContent = "";
+    const pre = document.createElement("pre");
+    pre.textContent = lines.join("\n");
+    container.appendChild(pre);
 }
