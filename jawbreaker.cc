@@ -34,18 +34,26 @@ using std::to_string;
 using std::uniform_int_distribution;
 using std::vector;
 
-// Per-move accumulated rollout statistics (sum of scores and rollout count),
-// used to evaluate each move by its mean (expected) score.
+// Per-move best (maximum) rollout score. A move is evaluated by the highest
+// final score found among all random rollouts that start with it. Max (not
+// mean) is deliberate: after the root move, rollouts play randomly, so the
+// average measures "how good is this move under random continuation" and washes
+// out the high-value, low-probability lines. The game's winning strategy
+// (hoard one color, clear it in one large group last) depends on finding such a
+// best-achievable line, which is exactly what the maximum captures.
 struct MoveStats {
-    map<int, int64_t> score_sums;
-    map<int, int64_t> rollout_counts;
+    map<int, int64_t> best_scores;
+
+    void record(const int move, const int64_t score) {
+        auto it = best_scores.find(move);
+        if (it == best_scores.end() || score > it->second) {
+            best_scores[move] = score;
+        }
+    }
 
     void merge(const MoveStats& other) {
-        for (const auto& kv : other.score_sums) {
-            score_sums[kv.first] += kv.second;
-        }
-        for (const auto& kv : other.rollout_counts) {
-            rollout_counts[kv.first] += kv.second;
+        for (const auto& kv : other.best_scores) {
+            record(kv.first, kv.second);
         }
     }
 };
@@ -75,8 +83,7 @@ void run_rollouts(const Board& board_orig,
                 const size_t random_move = dist(rng);
                 board.make_move(rollout_moves[random_move]);
             }
-            out.score_sums[move] += board.score;
-            out.rollout_counts[move] += 1;
+            out.record(move, board.score);
         }
         const time_point<system_clock> now = system_clock::now();
         if (now - start_time > max_duration) {
@@ -115,13 +122,10 @@ string get_best_move(const Board& board, const int score_orig) {
     }
 
     vector<pair<int, int64_t>> stats;
-    for (const auto& sum : total.score_sums) {
-        const int move = sum.first;
-        const int64_t sum_score = sum.second;
-        const int64_t count = total.rollout_counts.at(move);
-        // Mean rollout score for this move (expected value estimate).
-        const int64_t mean = count > 0 ? sum_score / count : 0;
-        stats.push_back({move, mean});
+    for (const auto& entry : total.best_scores) {
+        const int move = entry.first;
+        const int64_t best = entry.second;
+        stats.push_back({move, best});
     }
     sort(stats.begin(), stats.end(),
             [=](pair<int, int64_t>& a, pair<int, int64_t>& b) {
