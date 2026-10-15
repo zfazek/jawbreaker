@@ -26,3 +26,29 @@ set(CGI_BIN_DIR "/usr/lib/cgi-bin"
 install(TARGETS jawbreaker.cgi
     RUNTIME DESTINATION "${CGI_BIN_DIR}"
     )
+
+# ---------------------------------------------------------------------------
+# Tests. A single `ctest` runs both the C++ and the JavaScript cross-language
+# equivalence tests, which both check the shared tests/fixtures.json so the two
+# implementations (board.h and main.js) cannot silently diverge.
+#
+#   mkdir build && cd build && cmake .. && make && ctest --output-on-failure
+# ---------------------------------------------------------------------------
+enable_testing()
+
+set(FIXTURES "${CMAKE_SOURCE_DIR}/tests/fixtures.json")
+
+# C++ equivalence test: includes board.h, applies fixtures, asserts results.
+add_executable(board_test tests/board_test.cc)
+target_include_directories(board_test PRIVATE "${CMAKE_SOURCE_DIR}")
+add_test(NAME cpp_equivalence COMMAND board_test "${FIXTURES}")
+
+# JavaScript equivalence test using Node's built-in test runner. Registered
+# only if node is available, so the build still works on systems without it.
+find_program(NODE_EXECUTABLE node)
+if(NODE_EXECUTABLE)
+    add_test(NAME js_equivalence
+        COMMAND "${NODE_EXECUTABLE}" --test "${CMAKE_SOURCE_DIR}/tests/game.test.mjs")
+else()
+    message(STATUS "node not found: skipping js_equivalence test")
+endif()
